@@ -9,7 +9,7 @@ import sentencepiece as sp
 import random
 
 vocab = 10000
-spm = sp.SentencePieceProcessor(model_file=f'./05/DATA/sp{vocab}.model')
+spm = sp.SentencePieceProcessor(model_file=os.path.join(os.path.dirname(__file__), f'../DATA/sp{vocab}.model'))
 spm.SetEncodeExtraOptions('bos:eos')
 
 
@@ -67,8 +67,8 @@ class Config:
     grad_accum  = 2
     start_step  = 0
     steps_n     = 750_000
-    valid_steps = 10_000
-    valid_batch = 60
+    valid_steps = 20_000
+    valid_batch = 64
     early_stop  = 750_000
     warmup      = 4_000
 
@@ -80,7 +80,7 @@ class Config:
     beam_size = 5
 
     loss_name = 'CE'
-    criterion = partial(nn.CrossEntropyLoss,label_smoothing=0.1, ignore_index=spm.pad_id())
+    criterion = partial(nn.CrossEntropyLoss, ignore_index=spm.pad_id())
     opt_name  = 'Adam'
     optimizer = partial(
         torch.optim.Adam,
@@ -105,6 +105,7 @@ class Config:
         lrs_name,
         'w' + str(hidden_width),
         'd' + str(hidden_depth),
+        'h' + str(n_head),
         'bs' + str(batch_size),
         'reg' + str(weight_decay),
     ])

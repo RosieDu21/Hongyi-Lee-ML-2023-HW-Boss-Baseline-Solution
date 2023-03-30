@@ -13,6 +13,7 @@ from model import Model
 from logger import Logger
 from config import Config
 from dataset import get_data_loader
+from typing import Type
 
 
 def set_random_seed(config: Config) -> None:
@@ -32,12 +33,12 @@ def set_file_system(config: Config) -> None:
             os.mkdir(path)
 
     # copy source files
-    for filepath in glob(os.path.join('.', '*.py')):
+    for filepath in glob(os.path.join(os.path.dirname(__file__), '*.py')):
         filename = os.path.split(filepath)[-1]
         copyfile(filepath, os.path.join(config.log_dir, filename))
 
 
-def main(config: Config) -> None:
+def main(config: Type[Config]) -> None:
     # set random seed
     set_random_seed(config)
 
@@ -68,7 +69,7 @@ def main(config: Config) -> None:
     optimizer = config.optimizer(model.parameters())
     scheduler = config.scheduler(optimizer)
     if config.use_ckpt is not None:
-        model_stt, optim_stt, sched_stt = torch.load(config.use_ckpt)
+        model_stt, optim_stt, sched_stt = torch.load(config.use_ckpt, map_location=config.device)
         model.load_state_dict(model_stt)
         optimizer.load_state_dict(optim_stt)
         scheduler.load_state_dict(sched_stt)

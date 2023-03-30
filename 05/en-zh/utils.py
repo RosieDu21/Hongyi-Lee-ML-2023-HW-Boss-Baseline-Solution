@@ -141,7 +141,7 @@ def model_run(
 
     pred = model(x, y[:,:-1], torch.logical_not(x_mask), torch.logical_not(y_mask[:,1:]))
 
-    loss = criterion(pred.reshape(pred.size(0)*pred.size(1),pred.size(2)), y[:,1:].reshape(y.size(0)*(y.size(1)-1)))
+    loss = criterion(pred.reshape(-1,pred.size(-1)), y[:,1:].reshape(-1))
 
     if train:
         loss.backward()

@@ -2,7 +2,7 @@ import torch
 import math
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Union
+from typing import Union, Type
 from config import Config
 
 
@@ -24,7 +24,7 @@ class PositionalEncoding(nn.Module):
 
 
 class Model(nn.Module):
-    def __init__(self, config: Config) -> None:
+    def __init__(self, config: Type[Config]) -> None:
         super(Model, self).__init__()
         self.d_model = config.hidden_width
         self.n_head  = config.n_head
@@ -34,18 +34,16 @@ class Model(nn.Module):
         self.pe = PositionalEncoding(config.hidden_width, config.dropout)
 
         encoder_layer = nn.TransformerEncoderLayer(config.hidden_width,config.n_head,config.feedforward,config.dropout)
-        self.encoder = nn.TransformerEncoder(encoder_layer, config.hidden_depth)
-        for param in self.encoder.parameters():
-            if param.dim() > 1:
-                nn.init.xavier_uniform_(param)
+        self.encoder = nn.TransformerEncoder(encoder_layer, config.hidden_depth,norm=nn.LayerNorm(config.hidden_width))
 
         decoder_layer = nn.TransformerDecoderLayer(config.hidden_width,config.n_head,config.feedforward,config.dropout)
-        self.decoder = nn.TransformerDecoder(decoder_layer, config.hidden_depth)
-        for param in self.decoder.parameters():
+        self.decoder = nn.TransformerDecoder(decoder_layer, config.hidden_depth,norm=nn.LayerNorm(config.hidden_width))
+
+        self.output = nn.Linear(config.hidden_width,config.vocab_size)
+
+        for param in self.parameters():
             if param.dim() > 1:
                 nn.init.xavier_uniform_(param)
-
-        self.outlayer = nn.Linear(config.hidden_width,config.vocab_size)
 
     def forward(self,
             x: torch.Tensor,
@@ -56,9 +54,10 @@ class Model(nn.Module):
             is_x_memory: bool = False
         ) -> Union[tuple[torch.Tensor,torch.Tensor], torch.Tensor]:
         if not is_x_memory:
+            # (len, batch)
+            x = x.T
             # (len, batch, d_model)
-            x = x.permute(1,0,2)
-            x = self.embed(x)
+            x = self.embed(x) * math.sqrt(self.d_model)
             x = self.pe(x)
             # (len, batch, d_model)
             mem = self.encoder(x,src_key_padding_mask=src_padding_mask)
@@ -66,9 +65,10 @@ class Model(nn.Module):
             # (len, batch, d_model)
             mem = x.permute(1,0,2)
 
+        # (len, batch)
+        y = y.T
         # (len, batch, d_model)
-        y = y.permute(1,0,2)
-        y = self.embed(y)
+        y = self.embed(y) * math.sqrt(self.d_model)
         y = self.pe(y)
 
         # (len, batch, d_model)
@@ -88,7 +88,7 @@ class Model(nn.Module):
         out = out.permute(1,0,2)
         # (batch, len, vocab)
         # out = torch.einsum('vd,bld->blv',(F.normalize(self.embed.weight.data, dim=-1), F.normalize(out, dim=-1)))
-        out = self.outlayer(out)
+        out = self.output(out)
 
         if require_memory:
             return out, mem

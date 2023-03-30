@@ -9,7 +9,7 @@ import sentencepiece as sp
 import random
 
 vocab = 10000
-spm = sp.SentencePieceProcessor(model_file=f'./05/DATA/sp{vocab}.model')
+spm = sp.SentencePieceProcessor(model_file=os.path.join(os.path.dirname(__file__), f'../DATA/sp{vocab}.model'))
 spm.SetEncodeExtraOptions('bos:eos')
 
 
@@ -80,16 +80,22 @@ class Config:
     beam_size = 5
 
     loss_name = 'CE'
-    criterion = nn.CrossEntropyLoss
-    opt_name  = 'Adam'
-    optimizer = torch.optim.Adam
-    lrs_name  = 'InvSqrt'
-    scheduler = partial(lr_scheduler.LambdaLR,lr_lambda=partial(lr_lambda,d_model=hidden_width,warmup=warmup))
-    other_metrics = {'BLEU':bleu}
+    criterion = partial(nn.CrossEntropyLoss, ignore_index=spm.pad_id())
+    opt_name = 'Adam'
+    optimizer = partial(
+        torch.optim.Adam,
+        lr=learning_rate,
+        weight_decay=weight_decay,
+        betas=(0.9, 0.98),
+        eps=1e-9
+    )
+    lrs_name = 'InvSqrt'
+    scheduler = partial(lr_scheduler.LambdaLR, lr_lambda=partial(lr_lambda, d_model=hidden_width, warmup=warmup))
+    other_metrics = {'BLEU': bleu}
     classification = False
     require_metrics_on_training = False
     save_criterion = 'BLEU'
-    greater_better = False # if save criterion is "greater is better"
+    greater_better = False  # if save criterion is "greater is better"
 
     file_name_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
     file_name_config = '.'.join([
@@ -99,16 +105,17 @@ class Config:
         lrs_name,
         'w' + str(hidden_width),
         'd' + str(hidden_depth),
+        'h' + str(n_head),
         'bs' + str(batch_size),
         'reg' + str(weight_decay),
     ])
     file_name_both = file_name_time + '_' + file_name_config
 
-    exp_dir   = os.path.join(file_dir, '../exps')
-    base_dir  = os.path.join(exp_dir, file_name_both)
-    log_dir   = os.path.join(base_dir, 'train_log')
+    exp_dir = os.path.join(file_dir, '../exps')
+    base_dir = os.path.join(exp_dir, file_name_both)
+    log_dir = os.path.join(base_dir, 'train_log')
     model_dir = os.path.join(base_dir, 'model')
-    pred_dir  = os.path.join(base_dir, 'pred')
+    pred_dir = os.path.join(base_dir, 'pred')
     tensorboard_dir = os.path.join(base_dir, 'runs')
 
 

@@ -1,6 +1,6 @@
 import torch
-from typing import Union
-from config import Config, spm
+from typing import Union, Type
+from config import spm, Config
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset, DataLoader, random_split
 from collections import deque
@@ -78,7 +78,7 @@ class CachedDataLoader(DataLoader):
         return super(CachedDataLoader,self).__len__()*20
 
 
-def get_dataset(config: Config) -> tuple[Dataset, Dataset, Dataset]:
+def get_dataset(config: Type[Config]) -> tuple[Dataset, Dataset, Dataset]:
     test = Data(config.test_path)
     if config.valid_path is None:
         assert 1 > config.valid_ratio > 0
@@ -94,7 +94,7 @@ def get_dataset(config: Config) -> tuple[Dataset, Dataset, Dataset]:
     return train, valid, test
 
 
-def get_data_loader(config: Config) -> tuple[DataLoader, DataLoader, DataLoader]:
+def get_data_loader(config: Type[Config]) -> tuple[DataLoader, DataLoader, DataLoader]:
     train, valid, test = get_dataset(config)
     train_data = CachedDataLoader(
         train,
@@ -114,7 +114,7 @@ def get_data_loader(config: Config) -> tuple[DataLoader, DataLoader, DataLoader]
     )
     test_data = DataLoader(
         test,
-        batch_size=config.batch_size/4,
+        batch_size=config.batch_size//4,
         shuffle=False,
         drop_last=False,
         num_workers=config.n_workers,
