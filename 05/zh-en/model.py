@@ -56,10 +56,9 @@ class Model(nn.Module):
             is_x_memory: bool = False
         ) -> Union[tuple[torch.Tensor,torch.Tensor], torch.Tensor]:
         if not is_x_memory:
-            # (batch, len, d_model)
-            x = self.embed(x)
             # (len, batch, d_model)
             x = x.permute(1,0,2)
+            x = self.embed(x)
             x = self.pe(x)
             # (len, batch, d_model)
             mem = self.encoder(x,src_key_padding_mask=src_padding_mask)
@@ -67,10 +66,9 @@ class Model(nn.Module):
             # (len, batch, d_model)
             mem = x.permute(1,0,2)
 
-        # (batch, len, d_model)
-        y = self.embed(y)
         # (len, batch, d_model)
         y = y.permute(1,0,2)
+        y = self.embed(y)
         y = self.pe(y)
 
         # (len, batch, d_model)
@@ -83,7 +81,7 @@ class Model(nn.Module):
             tgt_key_padding_mask=tgt_padding_mask
         )
 
-        out = out / math.sqrt(self.d_model / self.n_head)
+        # out = out / math.sqrt(self.d_model / self.n_head)
 
         # (batch, len, d_model)
         mem = mem.permute(1,0,2)
