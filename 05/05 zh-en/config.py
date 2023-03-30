@@ -34,7 +34,9 @@ class Config:
     src_lang = 'zh'
     tgt_lang = 'en'
 
-    data_prefix = '../DATA'
+    file_dir = os.path.dirname(__file__)
+
+    data_prefix = os.path.join(file_dir, '../DATA')
     train_prefix = os.path.join(data_prefix,'train_dev.clean.')
     test_prefix = os.path.join(data_prefix, 'mono_test.clean.')
     train_path = (train_prefix+src_lang, train_prefix+tgt_lang)
@@ -102,7 +104,7 @@ class Config:
     ])
     file_name_both = file_name_time + '_' + file_name_config
 
-    exp_dir   = '../exps'
+    exp_dir   = os.path.join(file_dir, '../exps')
     base_dir  = os.path.join(exp_dir, file_name_both)
     log_dir   = os.path.join(base_dir, 'train_log')
     model_dir = os.path.join(base_dir, 'model')

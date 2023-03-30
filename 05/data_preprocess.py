@@ -103,7 +103,7 @@ def clean_corpus_mono(prefix, l, max_len=1000, min_len=1):
 
 if __name__ == '__main__':
     vocab = 10000
-    data_dir = './DATA'
+    data_dir = os.path.join(os.path.dirname(__file__), 'DATA')
     if not os.path.isdir(data_dir):
         os.mkdir(data_dir)
 

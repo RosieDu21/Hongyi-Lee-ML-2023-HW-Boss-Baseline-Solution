@@ -2,7 +2,7 @@ import os
 import csv
 
 if __name__ == '__main__':
-    data_dir = './DATA'
+    data_dir = os.path.join(os.path.dirname(__file__), 'DATA')
     old_file_prefix = os.path.join(data_dir,'train_dev.clean.')
     pred_file_dir = ''
     new_file_prefix = os.path.join(data_dir,'train_dev.new.')
