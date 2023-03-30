@@ -1,6 +1,7 @@
 import torch
 import math
 import torch.nn as nn
+import torch.nn.functional as F
 from typing import Union
 from config import Config
 
@@ -60,7 +61,6 @@ class Model(nn.Module):
             # (len, batch, d_model)
             x = x.permute(1,0,2)
             x = self.pe(x)
-
             # (len, batch, d_model)
             mem = self.encoder(x,src_key_padding_mask=src_padding_mask)
         else:
@@ -83,12 +83,13 @@ class Model(nn.Module):
             tgt_key_padding_mask=tgt_padding_mask
         )
 
-        out = out / math.sqrt(self.d_model/self.n_head)
+        out = out / math.sqrt(self.d_model / self.n_head)
 
         # (batch, len, d_model)
         mem = mem.permute(1,0,2)
         out = out.permute(1,0,2)
         # (batch, len, vocab)
+        # out = torch.einsum('vd,bld->blv',(F.normalize(self.embed.weight.data, dim=-1), F.normalize(out, dim=-1)))
         out = self.outlayer(out)
 
         if require_memory:

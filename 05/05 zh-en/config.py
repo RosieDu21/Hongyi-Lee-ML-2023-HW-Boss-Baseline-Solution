@@ -80,9 +80,15 @@ class Config:
     beam_size = 5
 
     loss_name = 'CE'
-    criterion = nn.CrossEntropyLoss
+    criterion = partial(nn.CrossEntropyLoss,label_smoothing=0.1, ignore_index=spm.pad_id())
     opt_name  = 'Adam'
-    optimizer = torch.optim.Adam
+    optimizer = partial(
+        torch.optim.Adam,
+        lr=learning_rate,
+        weight_decay=weight_decay,
+        betas=(0.9,0.98),
+        eps=1e-9
+    )
     lrs_name  = 'InvSqrt'
     scheduler = partial(lr_scheduler.LambdaLR,lr_lambda=partial(lr_lambda,d_model=hidden_width,warmup=warmup))
     other_metrics = {'BLEU':bleu}

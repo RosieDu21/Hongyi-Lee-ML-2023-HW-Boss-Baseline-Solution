@@ -114,7 +114,7 @@ def get_data_loader(config: Config) -> tuple[DataLoader, DataLoader, DataLoader]
     )
     test_data = DataLoader(
         test,
-        batch_size=config.batch_size,
+        batch_size=config.batch_size/4,
         shuffle=False,
         drop_last=False,
         num_workers=config.n_workers,

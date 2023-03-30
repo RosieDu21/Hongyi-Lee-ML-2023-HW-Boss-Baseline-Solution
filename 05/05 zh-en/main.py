@@ -11,7 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils import train, validate, predict, save_prediction
 from model import Model
 from logger import Logger
-from config import Config, spm
+from config import Config
 from dataset import get_data_loader
 
 
@@ -64,14 +64,8 @@ def main(config: Config) -> None:
     print('[info] Preparing model...', flush=True)
     model = Model(config).to(config.device)
     model_save_name = ''
-    criterion = config.criterion(label_smoothing=0.1, ignore_index=spm.pad_id())
-    optimizer = config.optimizer(
-        model.parameters(),
-        lr=config.learning_rate,
-        weight_decay=config.weight_decay,
-        betas=(0.9,0.98),
-        eps=1e-9
-    )
+    criterion = config.criterion()
+    optimizer = config.optimizer(model.parameters())
     scheduler = config.scheduler(optimizer)
     if config.use_ckpt is not None:
         model_stt, optim_stt, sched_stt = torch.load(config.use_ckpt)
@@ -84,6 +78,7 @@ def main(config: Config) -> None:
     optimal_criterion = -math.inf if config.greater_better else math.inf
     early_stop_cnt = 0
     train_iter = iter(train_data)
+    valid_iter = iter(valid_data)
 
     step = config.start_step
     while step < config.steps_n:
@@ -92,7 +87,7 @@ def main(config: Config) -> None:
         step += config.valid_steps
 
         # validation
-        metrics = validate(valid_data, iter(valid_data), model, writer, step, config)
+        metrics = validate(valid_data, valid_iter, model, writer, step, config)
 
         # save model and early stopping
         if (config.greater_better and metrics[config.save_criterion]>optimal_criterion) or \
