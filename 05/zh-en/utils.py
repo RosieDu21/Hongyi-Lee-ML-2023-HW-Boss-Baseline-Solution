@@ -95,7 +95,7 @@ def beam_search(
         # (batch, k, len, vocab)
         out = out.view(batch, k, len, vocab)
         # (batch, k, len, vocab) -> (batch, k, 1, vocab) -> (batch, k, vocab)
-        out = out.gather(2,mask.sum(dim=-1).long().view(batch,k,1,1).repeat((1,1,1,vocab))).squeeze()
+        out = out.gather(2,(mask.sum(dim=-1).long()-1).view(batch,k,1,1).repeat((1,1,1,vocab))).squeeze()
         # (batch, k, vocab)
         log_p = F.softmax(out, dim=-1).log() + log_p.unsqueeze(-1).repeat((1,1,vocab))
         # set finished log_p to -inf which is less than all other log(p)
