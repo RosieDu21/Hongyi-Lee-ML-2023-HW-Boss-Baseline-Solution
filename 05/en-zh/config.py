@@ -64,7 +64,7 @@ class Config:
     n_head  = 8
 
     batch_size  = 32
-    grad_accum  = 2
+    grad_accum  = 4
     start_step  = 0
     steps_n     = 750_000
     valid_steps = 10_000

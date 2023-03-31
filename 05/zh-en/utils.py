@@ -89,7 +89,7 @@ def beam_search(
             x=mem,
             y=candidates.view(batch*k, len),
             src_padding_mask=mem_mask,
-            tgt_padding_mask=mask.view(batch*k,len),
+            tgt_padding_mask=torch.logical_not(mask.view(batch*k,len)),
             is_x_memory=True
         ).detach()
         # (batch, k, len, vocab)
@@ -99,7 +99,7 @@ def beam_search(
         # (batch, k, vocab)
         log_p = F.softmax(out, dim=-1).log() + log_p.unsqueeze(-1).repeat((1,1,vocab))
         # set finished log_p to -inf which is less than all other log(p)
-        log_p = log_p + finished.float().unsqueeze(-1).repeat((1,1,vocab)) * -torch.inf
+        log_p = log_p.masked_fill(finished.unsqueeze(-1).repeat((1,1,vocab)), -torch.inf)
         # (batch, k, vocab) -> (batch, k*vocab)
         log_p = log_p.view(batch, k*vocab)
         # (batch, k*vocab) -> (batch, k)
