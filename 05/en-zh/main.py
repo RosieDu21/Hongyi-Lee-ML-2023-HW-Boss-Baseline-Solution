@@ -16,7 +16,7 @@ from dataset import get_data_loader
 from typing import Type
 
 
-def set_random_seed(config: Config) -> None:
+def set_random_seed(config: Type[Config]) -> None:
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
     random.seed(config.seed)
@@ -26,7 +26,7 @@ def set_random_seed(config: Config) -> None:
         torch.cuda.manual_seed_all(config.seed)
 
 
-def set_file_system(config: Config) -> None:
+def set_file_system(config: Type[Config]) -> None:
     # set paths
     for path in [config.exp_dir, config.base_dir, config.log_dir, config.model_dir, config.pred_dir]:
         if not os.path.isdir(path):

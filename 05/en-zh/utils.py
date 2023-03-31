@@ -25,20 +25,31 @@ def beam_search(
         maxlen:int = 1000
 )->tuple[torch.Tensor, torch.Tensor]:
 
-    def _add_to_final(
+    def _add(
             candidates:torch.Tensor,
+            mask:torch.Tensor,
             log_p:torch.Tensor,
             idx:torch.Tensor,
             finished:torch.Tensor,
             final_candidates:list[list[torch.Tensor]],
             final_log_p:list[list[float]]
-    ) -> tuple[list[list[torch.Tensor]], list[list[float]]]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, list[list[torch.Tensor]], list[list[float]]]:
+        batch, k, _ = candidates.shape
+        device = candidates.device
+        candidates = torch.cat((candidates,torch.ones((batch,k,1),dtype=torch.long).to(device) * spm.pad_id()), dim=-1)
+        mask = torch.cat((torch.ones((batch,k,1),dtype=torch.bool).to(device), mask), dim=-1)
         for i in range(candidates.size(0)):
             for j in range(candidates.size(1)):
-                if not finished[i,j] and idx[i, j] == spm.eos_id():
-                    final_candidates[i].append(candidates[i, j, :])
-                    final_log_p[i].append(log_p[i, j].item()/candidates.size(2))
-        return final_candidates, final_log_p
+                len = mask[i,j,:].sum(dim=-1)
+                if finished[i,j]:
+                    mask[i,j,len-1] = False
+                else:
+                    candidates[i,j,len-1] = idx[i,j]
+                    if idx[i,j] == spm.eos_id():
+                        finished[i,j] = True
+                        final_candidates[i].append(candidates[i,j,:])
+                        final_log_p[i].append(log_p[i,j].item()/len)
+        return candidates, mask, finished, final_candidates, final_log_p
 
     # out : (batch, len, vocab), mem : (batch, len_x, d_model)
     out, mem = model(x,y,torch.logical_not(x_mask),torch.logical_not(y_mask),require_memory=True)
@@ -48,11 +59,9 @@ def beam_search(
     mem = mem.repeat_interleave(k,dim=0)
     mem_mask = torch.logical_not(x_mask).repeat_interleave(k,dim=0)
 
-    batch = out.size(0)
-    len = out.size(1)
-    vocab = out.size(2)
+    batch, len, vocab = out.shape
 
-    # (batch, vocab)
+    # (batch, len, vocab) -> (batch, 1, vocab) -> (batch, vocab)
     out = out.gather(1,(y_mask.sum(dim=1).long()-1).view(batch,1,1).repeat((1,1,vocab))).squeeze()
     # (batch, vocab)
     log_p = F.softmax(out, dim=-1).log()
@@ -60,39 +69,37 @@ def beam_search(
     log_p, idx = log_p.topk(k, dim=-1)
 
     # (batch, k, len)
-    candidates = torch.cat((y.view(batch,1,len).repeat((1,k,1)), idx.unsqueeze(-1)),dim=2)
-    len += 1
-    # (batch, k)
-    final_candidates = [[] for _ in range(batch)]
-    final_log_p = [[] for _ in range(batch)]
-    final_candidates, final_log_p = _add_to_final(
+    candidates = y.view(batch,1,len).repeat(1,k,1)
+    mask = y_mask.view(batch,1,len).repeat(1,k,1)
+    # (batch, k, len) and (batch, k)
+    candidates, mask, finished, final_candidates, final_log_p = _add(
         candidates,
+        mask,
         log_p,
         idx,
         torch.zeros((batch,k),dtype=torch.bool).to(y.device),
-        final_candidates,
-        final_log_p
+        [[] for _ in range(batch)],
+        [[] for _ in range(batch)]
     )
-    finished = torch.Tensor(idx==spm.eos_id()).bool()
-
+    len += 1
 
     while (k > finished.sum(dim=-1).long()).any() and len<maxlen:
         # (batch*k, len, vocab)
-        out = model(
+        out:torch.Tensor = model(
             x=mem,
             y=candidates.view(batch*k, len),
             src_padding_mask=mem_mask,
-            tgt_padding_mask=None,
+            tgt_padding_mask=mask.view(batch*k,len),
             is_x_memory=True
         ).detach()
-        # (batch*k, vocab)
-        out = out[:,-1:]
-        # (batch, k, vocab)
-        out = out.view(batch, k, vocab)
+        # (batch, k, len, vocab)
+        out = out.view(batch, k, len, vocab)
+        # (batch, k, len, vocab) -> (batch, k, 1, vocab) -> (batch, k, vocab)
+        out = out.gather(2,mask.sum(dim=-1).long().view(batch,k,1,1).repeat((1,1,1,vocab))).squeeze()
         # (batch, k, vocab)
         log_p = F.softmax(out, dim=-1).log() + log_p.unsqueeze(-1).repeat((1,1,vocab))
         # set finished log_p to -inf which is less than all other log(p)
-        log_p = log_p * (torch.logical_not(finished).unsqueeze(-1).repeat((1,1,vocab)) * -torch.inf)
+        log_p = log_p + finished.float().unsqueeze(-1).repeat((1,1,vocab)) * -torch.inf
         # (batch, k, vocab) -> (batch, k*vocab)
         log_p = log_p.view(batch, k*vocab)
         # (batch, k*vocab) -> (batch, k)
@@ -101,14 +108,13 @@ def beam_search(
         idx = idx % vocab
         # (batch, k, len) -> (batch, k, len)
         candidates = candidates.gather(1,pre_idx.unsqueeze(-1).repeat((1,1,len)))
+        mask = mask.gather(1,pre_idx.unsqueeze(-1).repeat(1,1,len))
         # (batch, k) -> (batch, k)
         finished = finished.gather(1,pre_idx)
-        # (batch, k, len) -> (batch, k, len+1)
-        candidates = torch.cat((candidates, idx.unsqueeze(-1)),dim=2)
+        # (batch, k, len) -> (batch, k, len+1) and (batch, k)
+        candidates, mask, finished, final_candidates, final_log_p = _add(
+            candidates, mask, log_p, idx, finished, final_candidates, final_log_p)
         len += 1
-        # (batch, k) -> (batch, k)
-        final_candidates, final_log_p = _add_to_final(candidates,log_p,idx,finished,final_candidates,final_log_p)
-        finished = torch.logical_or(finished, torch.Tensor(idx==spm.eos_id()).bool())
 
     # (batch, len)
     ret_c = torch.ones((batch,len),dtype=torch.long).to(y.device) * spm.pad_id()
