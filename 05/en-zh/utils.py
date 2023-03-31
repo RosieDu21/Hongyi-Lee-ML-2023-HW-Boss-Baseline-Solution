@@ -40,7 +40,7 @@ def beam_search(
         mask = torch.cat((torch.ones((batch,k,1),dtype=torch.bool).to(device), mask), dim=-1)
         for i in range(candidates.size(0)):
             for j in range(candidates.size(1)):
-                len = mask[i,j,:].sum(dim=-1)
+                len = mask[i,j,:].sum(dim=-1).item()
                 if finished[i,j]:
                     mask[i,j,len-1] = False
                 else:
