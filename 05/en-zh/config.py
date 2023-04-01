@@ -95,7 +95,7 @@ class Config:
     classification = False
     require_metrics_on_training = False
     save_criterion = 'BLEU'
-    greater_better = False  # if save criterion is "greater is better"
+    greater_better = True  # if save criterion is "greater is better"
 
     file_name_time = time.strftime("%Y%m%d%H%M%S", time.localtime())
     file_name_config = '.'.join([

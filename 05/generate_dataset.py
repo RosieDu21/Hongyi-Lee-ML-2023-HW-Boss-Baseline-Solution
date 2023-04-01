@@ -4,7 +4,11 @@ import csv
 if __name__ == '__main__':
     data_dir = os.path.join(os.path.dirname(__file__), 'DATA')
     old_file_prefix = os.path.join(data_dir,'train_dev.clean.')
-    pred_file_dir = ''
+    pred_file_dir = os.path.join(
+        os.path.dirname(__file__),
+        'exps/20230401131651_Transformer-back.CE.Adam.InvSqrt.w512.d6.h8.bs32.reg1e-05/pred' \
+        '/Transformer-back.CE.Adam.InvSqrt.w512.d6.h8.bs32.reg1e-05.csv'
+    )
     new_file_prefix = os.path.join(data_dir,'train_dev.new.')
 
     src_lang = 'zh'

@@ -91,11 +91,12 @@ def main(config: Type[Config]) -> None:
         metrics = validate(valid_data, valid_iter, model, writer, step, config)
 
         # save model and early stopping
-        if (config.greater_better and metrics[config.save_criterion]>optimal_criterion) or \
-                (not config.greater_better and metrics[config.save_criterion]<optimal_criterion):
+        if (config.greater_better and metrics[config.save_criterion]>=optimal_criterion) or \
+                (not config.greater_better and metrics[config.save_criterion]<=optimal_criterion):
             optimal_criterion = metrics[config.save_criterion]
             early_stop_cnt = 0
-            print('[info] Optimal model has been found. Saving...', flush=True)
+            print(f'[info] Optimal model has been found. {config.save_criterion}: {optimal_criterion:.4f}. Saving...',
+                  flush=True)
             model_save_name = str(step) + '.' + filename
             torch.save((model.state_dict(), optimizer.state_dict(), scheduler.state_dict()),
                        os.path.join(config.model_dir, model_save_name + '.ckpt'))

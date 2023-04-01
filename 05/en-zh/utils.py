@@ -8,7 +8,7 @@ import numpy as np
 import torch.nn.functional as F
 from collections import deque
 from tqdm.auto import tqdm
-from typing import Union, Iterator
+from typing import Union, Iterator, Type
 from config import Config, spm
 from model import Model
 from dataset import get_data_loader
@@ -137,7 +137,7 @@ def model_run(
         y_mask: torch.Tensor,
         model: nn.Module,
         criterion: callable,
-        config: Config,
+        config: Type[Config],
         train: bool = False
 ) -> dict:
     x = x.to(config.device)
@@ -172,7 +172,7 @@ def train(
         scheduler: torch.optim.lr_scheduler._LRScheduler,
         writer: SummaryWriter,
         start_step: int,
-        config: Config
+        config: Type[Config]
 ) -> None:
     model.train()
     bar = tqdm(total=min(config.valid_steps, config.steps_n-start_step), ncols=0, desc="Train", unit=" step")
@@ -236,7 +236,7 @@ def validate(
         model: nn.Module,
         writer: SummaryWriter,
         step_cnt: int,
-        config: Config
+        config: Type[Config]
 ) -> dict:
     model.eval()
     bar = tqdm(total=config.valid_batch, ncols=0, desc="Valid", unit=" item")
@@ -291,7 +291,7 @@ def validate(
     return total_metrics
 
 
-def predict(test_data: DataLoader, model: nn.Module, filename: str, config: Config) -> Union[np.ndarray, list, tuple]:
+def predict(test_data:DataLoader, model:nn.Module, filename:str, config:Type[Config]) -> Union[np.ndarray, list, tuple]:
     model_state, _, __ = torch.load(os.path.join(config.model_dir, filename+'.ckpt'))
     model.load_state_dict(model_state)
     model.eval()
@@ -317,7 +317,7 @@ def predict(test_data: DataLoader, model: nn.Module, filename: str, config: Conf
     return preds
 
 
-def save_prediction(preds: Union[np.ndarray, list, tuple], filename: str, config: Config) -> None:
+def save_prediction(preds: Union[np.ndarray, list, tuple], filename: str, config: Type[Config]) -> None:
     file = os.path.join(config.pred_dir, filename + '.csv')
     with open(file, 'w') as fl:
         writer = csv.writer(fl)
